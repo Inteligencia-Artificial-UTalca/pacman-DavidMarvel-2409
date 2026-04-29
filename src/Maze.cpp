@@ -9,6 +9,8 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <queue>
+#include <limits>
 extern bool nogui;
 
 Maze::Maze(const std::string &filename) {
@@ -235,4 +237,28 @@ int Maze::numNeighbours(int index) const {
 		}
 	}
 	return num;
+}
+
+std::vector<int> Maze::distancesFrom(int from) const {
+    std::vector<int> dist(nodes.size(), std::numeric_limits<int>::max());
+    dist[from] = 0;
+
+    std::queue<int> q;
+    q.push(from);
+
+    while (!q.empty()) {
+        int current = q.front();
+        q.pop();
+
+        for (auto dir : {UP, DOWN, LEFT, RIGHT}) {
+            int next = getNeighbour(current, dir);
+
+            if (next != -1 && dist[next] == std::numeric_limits<int>::max()) {
+                dist[next] = dist[current] + 1;
+                q.push(next);
+            }
+        }
+    }
+
+    return dist;
 }

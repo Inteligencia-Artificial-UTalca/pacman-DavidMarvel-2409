@@ -1,80 +1,182 @@
 #include "BlinkyController.h"
 #include "GameState.h"
+#include "BehaviorTree.h"
 #include <limits>
 
+class ChasePacman : public Behavior
+{
+private:
+    const GameState &game;
+    int ghostIndex;
+    // std::shared_ptr<Character> ghost;
+    std::shared_ptr<Character> character;
+    Move &move;
 
-Move getOppositeMove(Move m){
-	switch(m){
-		case UP: return DOWN;
-		case DOWN: return UP;
-		case LEFT: return RIGHT;
-		case RIGHT: return LEFT;
-		default: return PASS;
-	}
-}
+public:
+    ChasePacman(const GameState &g, std::shared_ptr<Character> c, Move &m) : game(g), character(c), move(m) {}
 
-BlinkyController::BlinkyController(std::shared_ptr<Character> character):
-	Controller(character){
-}
+    Status update() override
+    {
+        // int pos = game.getGhostsPos(ghostIndex);
+        // Move dir = (Move)game.getGhostsDir(ghostIndex);
+        int pos = character->getPos();
+        Move dir = (Move)character->getDirection();
 
-BlinkyController::~BlinkyController() {
+        auto legal = game.getMaze().getGhostLegalMoves(pos, dir);
 
-}
-Move BlinkyController::getMove(const GameState& game){
-    int id = 0;
-    
-    auto ghostPos = game.getGhostsPos(id);
-    auto pacmanPos = game.getPacmanPos();
+        int pacPos = game.getPacmanPos();
 
-    Move currentDir = (Move)game.getGhostsDir(id);
-    
-    auto moves = game.getMaze().getGhostLegalMoves(ghostPos,currentDir);
+        auto distances = game.getMaze().distancesFrom(pacPos);
 
-    bool edible = game.isGhostEdible(id);
-    Move bestMove = PASS;
-    float bestValue = edible ? -1.0f : std::numeric_limits<float>::max();
+        int bestDist = std::numeric_limits<int>::max();
+        Move bestMove = PASS;
 
-    if (moves.size() == 1) {
-        return moves[0];
-    }
+        for (auto m : legal)
+        {
+            int next = game.getMaze().getNeighbour(pos, m);
 
-    for (Move m : moves){
-
-        if (m == PASS)
-            continue;
-
-        int nextPos = game.getMaze().getNeighbour(ghostPos, m);
-
-        if (nextPos == -1)
-            continue;
-
-        auto nextCoord = game.getMaze().getNodePos(nextPos);
-        auto pacmanCoord = game.getMaze().getNodePos(pacmanPos);
-
-        float dist = euclid2(nextCoord, pacmanCoord);
-
-        if (edible){
-            if (dist > bestValue){
-                bestValue = dist;
+            if (next >= 0 && next < distances.size() && distances[next] < bestDist)
+            {
+                bestDist = distances[next];
                 bestMove = m;
             }
         }
-        else{
-            if (dist < bestValue){
-                bestValue = dist;
+        if (bestMove == PASS && !legal.empty())
+        {
+            bestMove = legal[0];
+        }
+
+        move = bestMove;
+        return BH_SUCCESS;
+    }
+};
+
+class IsEdible : public Behavior
+{
+private:
+    const GameState &game;
+    int ghostIndex;
+
+public:
+    IsEdible(const GameState &g, int idx) : game(g), ghostIndex(idx) {}
+
+    Status update() override
+    {
+        return game.isGhostEdible(ghostIndex) ? BH_SUCCESS : BH_FAILURE;
+    }
+};
+
+class RandomMove : public Behavior
+{
+private:
+    const GameState &game;
+    int ghostIndex;
+    // std::shared_ptr<Character> ghost;
+    Move &move;
+
+public:
+    RandomMove(const GameState &g, int idx, Move &m) : game(g), ghostIndex(idx), move(m) {}
+
+    Status update() override
+    {
+        int pos = game.getGhostsPos(ghostIndex);
+        Move dir = (Move)game.getGhostsDir(ghostIndex);
+
+        auto legal = game.getMaze().getGhostLegalMoves(pos, dir);
+
+        if (!legal.empty())
+        {
+            move = legal[rand() % legal.size()];
+        }
+        else
+        {
+            move = PASS;
+        }
+        return BH_SUCCESS;
+    }
+};
+
+class Flee : public Behavior
+{
+private:
+    const GameState &game;
+    int ghostIndex;
+    // std::shared_ptr<Character> ghost;
+    std::shared_ptr<Character> character;
+    Move &move;
+
+public:
+    Flee(const GameState &g, std::shared_ptr<Character> c, Move &m) : game(g), character(c), move(m) {}
+
+    Status update() override
+    {
+        // int pos = game.getGhostsPos(ghostIndex);
+        // Move dir = (Move)game.getGhostsDir(ghostIndex);
+        int pos = character->getPos();
+        Move dir = (Move)character->getDirection();
+
+        auto legal = game.getMaze().getGhostLegalMoves(pos, dir);
+        std::cout << "Legal size: " << legal.size() << std::endl;
+
+        int pacPos = game.getPacmanPos();
+
+        auto distances = game.getMaze().distancesFrom(pacPos);
+
+        int worstDist = -1;
+        Move bestMove = PASS;
+
+        for (auto m : legal)
+        {
+            int next = game.getMaze().getNeighbour(pos, m);
+
+            if (next >= 0 && next < distances.size() && distances[next] > worstDist)
+            {
+                worstDist = distances[next];
                 bestMove = m;
             }
         }
-    }
-
-    if (bestMove == PASS) {
-        for (Move m : moves) {
-            if (m != PASS) {
-                bestMove = m;
-                break;
-            }
+        if (bestMove == PASS && !legal.empty())
+        {
+            bestMove = legal[0];
         }
-    }
 
-    return bestMove;
+        move = bestMove;
+        return BH_SUCCESS;
+    }
+};
+
+BlinkyController::BlinkyController(std::shared_ptr<Character> character) : Controller(character)
+{
+}
+
+BlinkyController::~BlinkyController()
+{
+}
+Move BlinkyController::getMove(const GameState &game)
+{
+    Move move = PASS;
+    int ghostIndex = 0;
+
+    auto root = std::make_shared<Selector>();
+
+    auto fleeFilter = std::make_shared<Filter>();
+    fleeFilter->addCondition(std::make_shared<IsEdible>(game, ghostIndex));
+    fleeFilter->addAction(std::make_shared<Flee>(game, character, move));
+
+    // auto chase = std::make_shared<ChasePacman>(game, ghostIndex, move);
+    auto chase = std::make_shared<ChasePacman>(game, character, move);
+
+    root->addChild(fleeFilter);
+    root->addChild(chase);
+    // auto chase = std::make_shared<Filter>();
+    // chase->addCondition(std::make_shared<IsPacmanNear>(game, character));
+    // chase->addAction(std::make_shared<ChasePacman>(game, character, move));
+
+    // auto random = std::make_shared<RandomMove>(game, character, move);
+
+    // root->addChild(chase);
+    // root->addChild(random);
+
+    root->tick();
+    return move;
 }

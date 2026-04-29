@@ -62,6 +62,10 @@ void Game::run(){
 		gameState.updateEaten();
 		std::vector<Move> ghostMoves;
 		std::transform(ghostsControl.begin(), ghostsControl.end(), std::back_inserter(ghostMoves), [this](const std::shared_ptr<Controller> &ghost) { return ghost->getMove(gameState);});
+		for (int i = 0; i < ghostMoves.size(); i++){
+			std::cout << "Move " << i << ": " << (int)ghostMoves[i] << "\n";
+		}
+		std::cout << std::endl;
 		gameState.updateGhosts(ghostMoves);
 		gameState.updateEaten();
 		if(gameState.won()){
