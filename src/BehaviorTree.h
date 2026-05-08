@@ -26,6 +26,7 @@ class Behavior
  * Base class for actions, conditions and composites.
  */
 {
+    
 public:
     virtual Status update()				= 0;
 
