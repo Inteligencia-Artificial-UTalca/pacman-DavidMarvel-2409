@@ -5,11 +5,15 @@ PinkyController::PinkyController(std::shared_ptr<Character> character) : Control
 																		 root(std::make_shared<Selector>())
 {
 	auto frightenedFilter = std::make_shared<Filter>();
+	auto scatterFilter = std::make_shared<Filter>();
 
 	frightenedFilter->addCondition(std::make_shared<IsEdible>());
 	frightenedFilter->addAction(std::make_shared<PinkyFrightened>());
+	scatterFilter->addCondition(std::make_shared<PinkyTimeOut>());
+	scatterFilter->addAction(std::make_shared<PinkyScatter>());
 
 	root->addChild(frightenedFilter);
+	root->addChild(scatterFilter);
 	root->addChild(std::make_shared<PinkyChase>());
 	root->addChild(std::make_shared<PinkyRandom>());
 }
@@ -132,7 +136,7 @@ Status PinkyChase::update()
 	{
 		if (move == PASS)
 		{
-			break;
+			continue;
 		}
 		float distancia = euclid2(target, game->getMaze().getNodePos(game->getMaze().getNeighbour(character->getPos(), move)));
 		if (distancia < min)
@@ -142,5 +146,63 @@ Status PinkyChase::update()
 		}
 	}
 	PinkyInfo::getInfo()->_move = minmov;
+	return BH_SUCCESS;
+}
+
+PinkyTimeOut::PinkyTimeOut()
+{
+	lastTime = std::chrono::high_resolution_clock::now();
+}
+Status PinkyTimeOut::update()
+{
+	std::chrono::duration<float> transcurrido = std::chrono::high_resolution_clock::now() - lastTime;
+	int time = (int)transcurrido.count();
+	if (time % 27 < 7)
+	{
+		return BH_SUCCESS;
+	}
+
+	return BH_FAILURE;
+}
+
+PinkyScatter::PinkyScatter()
+{
+	target = std::make_pair(0, 0);
+}
+
+Status PinkyScatter::update()
+{
+	auto game = PinkyInfo::getInfo()->_gameState;
+	auto character = PinkyInfo::getInfo()->_Character;
+
+	std::vector<Move> moves;
+
+	if (character->getDirection() == PASS)
+	{
+		moves = game->getMaze().getPossibleMoves(character->getPos());
+	}
+	else
+	{
+		moves = game->getMaze().getGhostLegalMoves(character->getPos(), character->getDirection());
+	}
+
+	float min = 9999999;
+	Move mejorMove = PASS;
+
+	for (auto move : moves)
+	{
+		if (move == PASS)
+		{
+			continue;
+		}
+		auto nextPos = game->getMaze().getNodePos(game->getMaze().getNeighbour(character->getPos(), move));
+		float distancia = euclid2(target, nextPos);
+		if (distancia < min)
+		{
+			min = distancia;
+			mejorMove = move;
+		}
+	}
+	PinkyInfo::getInfo()->_move = mejorMove;
 	return BH_SUCCESS;
 }

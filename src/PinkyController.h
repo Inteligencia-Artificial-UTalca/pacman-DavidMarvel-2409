@@ -10,42 +10,65 @@ class PinkyInfo
 	PinkyInfo() {}
 
 public:
-	static PinkyInfo* getInfo(){
-		if(_PinkyInfo == nullptr) _PinkyInfo = new PinkyInfo();
+	static PinkyInfo *getInfo()
+	{
+		if (_PinkyInfo == nullptr)
+			_PinkyInfo = new PinkyInfo();
 		return _PinkyInfo;
 	}
-	const GameState * _gameState;
+	const GameState *_gameState;
 	Move _move;
 	std::shared_ptr<Character> _Character;
 };
 
 class PinkyController : public Controller
 {
-    std::shared_ptr<Composite> root;
+	std::shared_ptr<Composite> root;
+
 public:
 	PinkyController(std::shared_ptr<Character> character);
 	virtual ~PinkyController();
 	virtual Move getMove(const GameState &game) override;
 };
 
-
-class PinkyChase : public Behavior{
+class PinkyChase : public Behavior
+{
 public:
-    virtual Status update() override;
-
+	virtual Status update() override;
 };
-class PinkyFrightened : public Behavior{
+class PinkyFrightened : public Behavior
+{
 public:
-    virtual Status update() override;
-
-};
-
-class PinkyRandom : public Behavior {
-public:
-    virtual Status update() override;
+	virtual Status update() override;
 };
 
-class IsEdible : public Behavior {
+class PinkyRandom : public Behavior
+{
 public:
-    virtual Status update() override;
+	virtual Status update() override;
+};
+
+class IsEdible : public Behavior
+{
+public:
+	virtual Status update() override;
+};
+class PinkyScatter : public Behavior
+{
+private:
+	std::pair<int, int> target;
+
+public:
+	PinkyScatter();
+	virtual Status update() override;
+};
+
+class PinkyTimeOut : public Behavior
+{
+private:
+	std::chrono::time_point<std::chrono::high_resolution_clock> lastTime;
+
+public:
+	virtual Status update() override;
+	PinkyTimeOut();
 };
