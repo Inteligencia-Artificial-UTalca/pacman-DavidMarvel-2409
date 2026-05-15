@@ -13,5 +13,5 @@ public:
 	virtual ~SimplePacmanController();
 	virtual Move getMove(const GameState& game)override;
 };
-
+  
 #endif /* SIMPLEPACMANCONTROLLER_H_ */

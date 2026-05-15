@@ -11,7 +11,6 @@ SimplePacmanController::~SimplePacmanController() {
 	// TODO Auto-generated destructor stub
 }
 
-
 Move SimplePacmanController::getClosestMove(const GameState& game, std::pair<int,int> target)const{
 	int minDist=10000000;
 	Move minMove=character->getDirection();
