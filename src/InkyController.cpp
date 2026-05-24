@@ -13,5 +13,4 @@ Move
 InkyController::getMove(const GameState& game){
 	return PASS;	
 
-	
 }

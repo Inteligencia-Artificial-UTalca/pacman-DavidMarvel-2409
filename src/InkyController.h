@@ -10,4 +10,3 @@ public:
 	virtual ~InkyController();
 	virtual Move getMove(const GameState& game)override;
 };
-
